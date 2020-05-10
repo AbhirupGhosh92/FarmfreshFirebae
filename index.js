@@ -7,6 +7,9 @@ const functions = require('firebase-functions');
 //  response.send("Hello from Firebase!");
 // });
 
+const admin = require('firebase-admin');
+admin.initializeApp();
+
 function responseParser(payload,status,response)
 {
     try {
@@ -27,16 +30,17 @@ function responseParser(payload,status,response)
     }
 }
 catch (error) {
-    console.log(error);
+    console.error(error);
   }
 }
 
 exports.heartbeat = functions.https.onRequest((req, res) => {
     try{
-        res.send("Success");
+        responseParser("Success", 200, res);
     }
     catch (error) {
         responseParser(error,500,res);
+        console.log(error);
     }
 });
 
@@ -53,6 +57,39 @@ exports.createDeliveryBoy = functions.https.onRequest((req, res) => {
 }
 catch (error) {
     responseParser(error,500,res);
+    console.error(error);
+    }
+    
+    
+});
+
+exports.addArea = functions.https.onRequest((req, res) => {
+    
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var id = body.name;
+      var manager = body.manager;
+      admin.database().ref('/area/'+id).set({
+        "deliveryCharge":body.deliveryCharge,"manager":body.manager,"minimumBill":body.minimumBill,"name":body.name
+        }).then(() => {
+        responseParser("Area added Successfully",200,res);
+      })
+
+      if(manager.length  != 0 && manager != null)
+      {
+        admin.database().ref('/managers/'+manager).set({"name":manager,"area":body.name,"phone":"",address:""});
+      }
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
     }
     
     
