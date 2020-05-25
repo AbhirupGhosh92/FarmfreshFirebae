@@ -28,6 +28,12 @@ function responseParser(payload,status,response)
         response.statusCode = 500
         response.send({"status":500,"responseMessage":"INTERNAL SERVER ERROR","data":payload});
     }
+
+    else if(status===400)
+    {
+        response.statusCode = 400
+        response.send({"status":400,"responseMessage":"BAD REQUEST","data":payload});
+    }
 }
 catch (error) {
     console.error(error);
@@ -61,6 +67,75 @@ catch (error) {
     }
     
     
+});
+
+exports.checkAccess = functions.https.onRequest((req, res) => {
+    try {
+        if(req.method === 'GET')
+        {
+        var id = req.query.id;
+        var role = req.query.role;
+
+        if(id != undefined && role != undefined && id.length!=0 && role.length != 0)
+        {
+
+
+            if(role === "master")
+            {
+                var statusReport = {accessGranted:true,mobileAdded : true,detailsAdded : true};
+                responseParser(statusReport,200,res);
+            }
+            else if (role === "shop")
+            {
+                var statusReport2 = {accessGranted:true,mobileAdded : false,detailsAdded : false};
+                responseParser(statusReport2,200,res);
+            }
+            else
+            {
+        admin.database().ref("/"+role+"/"+id).once("value",(snapshot) => {
+            console.log(snapshot)
+            if(!snapshot.exists())
+        {
+            responseParser({
+                accessGranted:false
+            },200,res);
+        }
+        else {
+            var statusReport = {};
+            statusReport.accessGranted = true;
+            if(snapshot.child('mobile').exists() && snapshot.child('mobile').val() != null && snapshot.child('mobile').val() != "")
+            {
+                statusReport.mobileAdded = true;
+            }
+            else {
+                  statusReport.mobileAdded = false;
+                }
+
+            if(snapshot.child('name').exists() && snapshot.child('name').val() != null && snapshot.child('name').val() != "" && snapshot.child('address').exists() && snapshot.child('address').val() != null && snapshot.child('address').val() != "")
+            {
+                statusReport.detailsAdded = true;
+            }
+            else {
+                  statusReport.detailsAdded = false;
+                }
+            responseParser(statusReport,200,res);
+        }
+        });
+    }
+    }
+    else
+    {
+        responseParser("Id and role not provided",500,res);
+    }
+    }
+    else {
+        responseParser("Method Not allowed", 403, res);
+      }
+        
+    } catch (error) {
+        console.error(error);
+        responseParser(error,500,res);
+    }
 });
 
 exports.addArea = functions.https.onRequest((req, res) => {
