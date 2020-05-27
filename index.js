@@ -169,3 +169,40 @@ catch (error) {
     
     
 });
+
+exports.addMobileNumber = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var id = req.query.id;
+      var mobile = body.mobile;
+        if(id != undefined && id.length !=0)
+        {
+            
+            if(mobile != undefined && mobile.length === 13)
+            {
+                admin.database().ref('/manager/'+id).set({
+                    "mobile":mobile}).then(() => {
+                    responseParser("Mobile number added Successfully",200,res);
+                })
+            }
+            else {
+                responseParser("Mobile Number is invalid",400,res);
+          }
+        }
+        else 
+        {
+            responseParser("Id is invalid",400,res);
+        }
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
