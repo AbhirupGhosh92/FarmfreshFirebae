@@ -87,12 +87,46 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
             }
             else if (role === "shop")
             {
-                var statusReport2 = {accessGranted:true,mobileAdded : false,detailsAdded : false};
-                responseParser(statusReport2,200,res);
+                admin.database().ref("/access/"+role+"/"+id).once("value",(snapshot) => {
+                    console.log(snapshot)
+                    if(!snapshot.exists())
+                {
+                    admin.database().ref('/access/'+role+'/'+id).child("accessGranted").set(true);
+                    responseParser({
+                        accessGranted:true,mobileAdded : false,detailsAdded : false
+                    },200,res);
+
+                
+                }
+                else
+                {
+                    var statusReport = {};
+                    statusReport.accessGranted = true;
+                
+                    if(snapshot.child('mobile').exists() && snapshot.child('mobile').val() != null && snapshot.child('mobile').val() == true)
+                    {
+                        statusReport.mobileAdded = true;
+                    }
+                    else {
+                        statusReport.mobileAdded = false;
+                        }
+
+                    if(snapshot.child('details').exists() && snapshot.child('details').val() != null && snapshot.child('details').val() == true )
+                    {
+                        statusReport.detailsAdded = true;
+                    }
+                    else {
+                        statusReport.detailsAdded = false;
+                        }
+                    responseParser(statusReport,200,res);
+                }
+
+            });
+               
             }
             else
             {
-        admin.database().ref("/"+role+"/"+id).once("value",(snapshot) => {
+        admin.database().ref("/access/"+role+"/"+id).once("value",(snapshot) => {
             console.log(snapshot)
             if(!snapshot.exists())
         {
@@ -103,7 +137,7 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
         else {
             var statusReport = {};
             statusReport.accessGranted = true;
-            if(snapshot.child('mobile').exists() && snapshot.child('mobile').val() != null && snapshot.child('mobile').val() != "")
+            if(snapshot.child('mobile').exists() && snapshot.child('mobile').val() != null && snapshot.child('mobile').val() == true)
             {
                 statusReport.mobileAdded = true;
             }
@@ -111,7 +145,7 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
                   statusReport.mobileAdded = false;
                 }
 
-            if(snapshot.child('name').exists() && snapshot.child('name').val() != null && snapshot.child('name').val() != "" && snapshot.child('address').exists() && snapshot.child('address').val() != null && snapshot.child('address').val() != "")
+            if(snapshot.child('details').exists() && snapshot.child('details').val() != null && snapshot.child('details').val() == true )
             {
                 statusReport.detailsAdded = true;
             }
@@ -180,20 +214,27 @@ exports.addMobileNumber = functions.https.onRequest((req, res) => {
 
       var body = req.body;
       var id = req.query.id;
+      var role = req.query.role;
       var mobile = body.mobile;
         if(id != undefined && id.length !=0)
         {
-            
-            if(mobile != undefined && mobile.length === 13)
+            if(role != null && role.length != 0)
             {
-                admin.database().ref('/manager/'+id).set({
-                    "mobile":mobile}).then(() => {
+                if(mobile != undefined && mobile.length === 13)
+                {
+                    admin.database().ref('/access/'+role+'/'+id).child("mobileAdded").set(true);
+                    admin.database().ref('/'+'userDetails/'+role+'/'+id).child("mobile").set(mobile);
                     responseParser("Mobile number added Successfully",200,res);
-                })
+                }
+                else {
+                    responseParser("Mobile Number is invalid",400,res);
+              }
             }
-            else {
-                responseParser("Mobile Number is invalid",400,res);
-          }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
         }
         else 
         {
