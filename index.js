@@ -306,3 +306,40 @@ catch (error) {
     console.error(error);
     }
 });
+
+exports.getUsersList = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var role = body.role;
+            if(role != null && role.length != 0)
+            {
+                admin.database().ref('/'+'userDetails/'+role).once("value",(snapshot) => {
+                    
+                    if(!snapshot.exists())
+                    {
+                        responseParser("role not found",500,res);
+                    }
+                    else {
+                        responseParser(snapshot.toJSON(),200,res);
+                    }
+                    
+                })
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
