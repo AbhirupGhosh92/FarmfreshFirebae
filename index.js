@@ -71,10 +71,10 @@ catch (error) {
 
 exports.checkAccess = functions.https.onRequest((req, res) => {
     try {
-        if(req.method === 'GET')
+        if(req.method === 'POST')
         {
-        var id = req.query.id;
-        var role = req.query.role;
+        var id = req.body.id;
+        var role = req.body.role;
 
         if(id != undefined && role != undefined && id.length!=0 && role.length != 0)
         {
@@ -88,12 +88,19 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
             else if (role === "shop")
             {
                 admin.database().ref("/access/"+role+"/"+id).once("value",(snapshot) => {
-                    console.log(snapshot)
+                    console.log(snapshot);
                     if(!snapshot.exists())
                 {
+                    var mobile = false;
+
+                    if(snapshot.child('mobileAdded').exists())
+                    {
+                        mobile = snapshot.child('mobileAdded').val();
+                    }
+
                     admin.database().ref('/access/'+role+'/'+id).child("accessGranted").set(true);
                     responseParser({
-                        accessGranted:true,mobileAdded : false,detailsAdded : false
+                        accessGranted:true,mobileAdded : mobile,detailsAdded : false
                     },200,res);
 
                 
@@ -103,7 +110,7 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
                     var statusReport = {};
                     statusReport.accessGranted = true;
                 
-                    if(snapshot.child('mobile').exists() && snapshot.child('mobile').val() != null && snapshot.child('mobile').val() == true)
+                    if(snapshot.child('mobileAdded').exists() && snapshot.child('mobileAdded').val() != null && snapshot.child('mobileAdded').val() == true)
                     {
                         statusReport.mobileAdded = true;
                     }
@@ -111,7 +118,7 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
                         statusReport.mobileAdded = false;
                         }
 
-                    if(snapshot.child('details').exists() && snapshot.child('details').val() != null && snapshot.child('details').val() == true )
+                    if(snapshot.child('detailsAdded').exists() && snapshot.child('detailsAdded').val() != null && snapshot.child('detailsAdded').val() == true )
                     {
                         statusReport.detailsAdded = true;
                     }
@@ -136,8 +143,14 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
         }
         else {
             var statusReport = {};
-            statusReport.accessGranted = true;
-            if(snapshot.child('mobile').exists() && snapshot.child('mobile').val() != null && snapshot.child('mobile').val() == true)
+            if(snapshot.child('accessGranted').exists() && snapshot.child('accessGranted').val() != null)
+            {
+                statusReport.accessGranted =  snapshot.child('accessGranted').val();
+            }
+            else {
+                    statusReport.accessGranted = false;
+            }
+            if(snapshot.child('mobileAdded').exists() && snapshot.child('mobileAdded').val() != null && snapshot.child('mobileAdded').val() == true)
             {
                 statusReport.mobileAdded = true;
             }
@@ -145,7 +158,7 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
                   statusReport.mobileAdded = false;
                 }
 
-            if(snapshot.child('details').exists() && snapshot.child('details').val() != null && snapshot.child('details').val() == true )
+            if(snapshot.child('detailsAdded').exists() && snapshot.child('detailsAdded').val() != null && snapshot.child('detailsAdded').val() == true )
             {
                 statusReport.detailsAdded = true;
             }
@@ -213,8 +226,8 @@ exports.addMobileNumber = functions.https.onRequest((req, res) => {
     else {
 
       var body = req.body;
-      var id = req.query.id;
-      var role = req.query.role;
+      var id = body.id;
+      var role = body.role;
       var mobile = body.mobile;
         if(id != undefined && id.length !=0)
         {
@@ -240,6 +253,52 @@ exports.addMobileNumber = functions.https.onRequest((req, res) => {
         {
             responseParser("Id is invalid",400,res);
         }
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.grantAccess = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var email = body.email;
+      var role = body.role;
+            if(role != null && role.length != 0)
+            {
+                if(email != undefined)
+                {
+                    admin.auth().getUserByEmail(email)
+                            .then((userRecord) => {
+                                // See the UserRecord reference doc for the contents of userRecord.
+                                console.log('Successfully fetched user data:', userRecord.toJSON());
+                                admin.database().ref('/access/'+role+'/'+userRecord.uid).child("accessGranted").set(true);
+                    responseParser("Access granted successfully",200,res);
+                            })
+                            .catch(function(error) {
+                                console.log('Error fetching user data:', error);
+                                responseParser("Error fetching user data",500,res);
+                            });
+
+                    
+                }
+                else {
+                    responseParser("Email is invalid",400,res);
+              }
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
     }
 }
 catch (error) {
