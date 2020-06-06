@@ -326,10 +326,76 @@ exports.getUsersList = functions.https.onRequest((req, res) => {
                         responseParser("role not found",500,res);
                     }
                     else {
-                        responseParser(snapshot.toJSON(),200,res);
+                        
+                        var userList = snapshot.toJSON();
+                        
+                        var users = [];
+
+                        for(let [key,it] of Object.entries(userList))
+                        {
+                            if (it.hasOwnProperty("email") && it.hasOwnProperty("mobile") && it.hasOwnProperty("name") && it.hasOwnProperty("address")) {           
+                                var element = {};
+                                element.uid = key;
+                                element.name = it.name;
+                                element.email = it.email;
+                                element.mobile = it.mobile;
+                                users.push(element);
+                            }
+                            
+                        }
+
+                        responseParser(users,200,res);
                     }
                     
-                })
+                });
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.addUserDetails = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var role = body.role;
+            if(role != null && role.length != 0)
+            {
+
+                admin.database().ref('/'+'userDetails/'+role + '/'+body.uid).once("value",(snapshot) => {
+                    
+                    if(!snapshot.child("address").exists())
+                    {
+                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("name").set(body.name);
+                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("email").set(body.email);
+                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
+                        admin.database().ref("/access/"+role+"/"+body.uid).child("detailsAdded");
+                        responseParser("Address added successfully",200,res);
+                      
+                    }
+                    else {
+                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("name").set(body.name);
+                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("email").set(body.email);
+                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
+                        responseParser("Address added successfully",200,res);
+                    }
+                    
+                });
+
+                responseParser("Address Saved",200,res);
             }
             else
             {
