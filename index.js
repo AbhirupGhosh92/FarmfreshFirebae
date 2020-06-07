@@ -323,7 +323,7 @@ exports.getUsersList = functions.https.onRequest((req, res) => {
                     
                     if(!snapshot.exists())
                     {
-                        responseParser("role not found",500,res);
+                        responseParser("role not found",400,res);
                     }
                     else {
                         
@@ -362,6 +362,48 @@ catch (error) {
     }
 });
 
+function processAddressForDefault(role,body,callback)
+{
+    if(body.address.primary == true)
+    {
+        var add = {};
+        admin.database().ref('/'+'userDetails/'+role + '/'+body.uid + '/address').once("value",(snapshot) => {
+            for(let [key,value] of Object.entries(snapshot.toJSON()))
+            {
+                value.primary = false;
+                add[key] = value;
+            };
+            admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").set(add);
+            admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
+        });
+    }
+    else
+    {
+        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
+    }
+
+    callback();
+}
+
+function processAddressForDefaultUpdate(role,body,addressId,callback)
+{
+    if(body.address.primary == true)
+    {
+        var add = {};
+        admin.database().ref('/'+'userDetails/'+role + '/'+body.uid + '/address').once("value",(snapshot) => {
+            for(let [key,value] of Object.entries(snapshot.toJSON()))
+            {
+                value.primary = false;
+                add[key] = value;
+            };
+            admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").set(add);
+            admin.database().ref('/userDetails/'+role+'/'+body.uid+'/address/'+addressId).child('primary').set(true);
+        });
+    }
+
+    callback();
+}
+
 exports.addUserDetails = functions.https.onRequest((req, res) => {
     try{
     if(req.method === 'GET')
@@ -382,20 +424,234 @@ exports.addUserDetails = functions.https.onRequest((req, res) => {
                         admin.database().ref('/userDetails/'+role+'/'+body.uid).child("name").set(body.name);
                         admin.database().ref('/userDetails/'+role+'/'+body.uid).child("email").set(body.email);
                         admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
-                        admin.database().ref("/access/"+role+"/"+body.uid).child("detailsAdded");
-                        responseParser("Address added successfully",200,res);
+                        admin.database().ref("/access/"+role+"/"+body.uid).child("detailsAdded").set(true);
+                        responseParser("Details Saved",200,res);
                       
                     }
                     else {
-                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("name").set(body.name);
-                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("email").set(body.email);
-                        admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
-                        responseParser("Address added successfully",200,res);
+
+                        processAddressForDefault(role, body);
+                        responseParser("Details Saved",200,res);
                     }
                     
                 });
 
-                responseParser("Address Saved",200,res);
+                responseParser("Details Saved",200,res);
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.editUserDetails = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var role = body.role;
+            if(role != null && role.length != 0)
+            {
+                admin.database().ref('/'+'userDetails/'+role + '/'+body.uid).once("value",(snapshot) => {
+                    
+                    if (snapshot.exists())
+                    {
+                        if(body.email != undefined && body.email.length > 0)
+                        {
+                          admin.database().ref('/'+'userDetails/'+role + '/'+body.uid).child('email').set(body.email);
+                        } 
+                        if(body.name != undefined && body.name.length > 0)
+                        {
+                          admin.database().ref('/'+'userDetails/'+role + '/'+body.uid).child('name').set(body.name);
+                        }
+                        if(body.mobile != undefined && body.mobile.length > 0)
+                        {
+                          admin.database().ref('/'+'userDetails/'+role + '/'+body.uid).child('mobile').set(body.mobile);
+                        }
+
+                        responseParser("Details updated",200,res);
+                    }
+                    else
+                    {
+                        responseParser("User Not found",400,res);
+                    }
+                });
+                
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.editAddress = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+    
+
+      var body = req.body;
+      var role = body.role;
+            if(role != null && role.length != 0)
+            {
+
+                processAddressForDefaultUpdate(role, body,body.addressId,() => {
+
+                      admin.database().ref('/'+'userDetails/'+role + '/'+body.uid + '/address/'+body.addressId).once("value",(snapshot) => {
+                    
+                    if (snapshot.exists())
+                    {
+
+                        if(body.address.city != undefined && body.address.city.length > 0)
+                        {
+                          admin.database().ref('/'+'userDetails/'+role + '/'+body.uid +'/address/'+body.addressId).child('city').set(body.address.city);
+                        } 
+                        if(body.address.country != undefined && body.address.country.length > 0)
+                        {
+                            admin.database().ref('/'+'userDetails/'+role + '/'+body.uid +'/address/'+body.addressId).child('country').set(body.address.country);
+                        }
+                        if(body.address.locality != undefined && body.address.locality.length > 0)
+                        {
+                            admin.database().ref('/'+'userDetails/'+role + '/'+body.uid +'/address/'+body.addressId).child('locality').set(body.address.locality);
+                        }
+
+                        if(body.address.pincode != undefined && body.address.pincode.length > 0)
+                        {
+                            admin.database().ref('/'+'userDetails/'+role + '/'+body.uid +'/address/'+body.addressId).child('pincode').set(body.address.pincode);
+                        }
+
+                        if(body.address.state != undefined && body.address.state.length > 0)
+                        {
+                            admin.database().ref('/'+'userDetails/'+role + '/'+body.uid +'/address/'+body.addressId).child('state').set(body.address.state);
+                        }
+
+                        if(body.address.street != undefined && body.address.street.length > 0)
+                        {
+                            admin.database().ref('/'+'userDetails/'+role + '/'+body.uid +'/address/'+body.addressId).child('street').set(body.address.street);
+                        }
+
+
+
+                        responseParser("Details updated",200,res);
+                    }
+                    else
+                    {
+                        responseParser("Address Id doesnot exist",400,res);
+                    }
+                });
+
+
+                })  
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.getAddressList = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var role = body.role;
+            if(role != null && role.length != 0)
+            {
+                admin.database().ref('/'+'userDetails/'+role + '/'+body.uid+'/address').once("value",(snapshot) => {
+                    
+                    if (snapshot.exists())
+                    {
+        
+                        responseParser(snapshot.toJSON(),200,res);
+                    }
+                    else
+                    {
+                        responseParser("Address not found",400,res);
+                    }
+                });
+                
+            }
+            else
+            {
+                responseParser("role is invalid",400,res);
+            }
+            
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.deleteAddress = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var role = body.role;
+      var addressId = body.addressId;
+            if(role != null && role.length != 0)
+            {
+                var ref = admin.database().ref('/'+'userDetails/'+role + '/'+body.uid+'/address/'+addressId);
+                ref.once("value",(snapshot) => {
+                    
+                    if (snapshot.exists())
+                    {
+                        if(snapshot.toJSON().primary == true)
+                        {
+                            responseParser("Cannot delete primary address",200,res);
+                        }
+                        else {
+                            
+                            ref.remove();
+                            responseParser("Address deleted",200,res);
+
+                        }
+                    }
+                    else
+                    {
+                        responseParser("Address not found",400,res);
+                    }
+                });
+                
             }
             else
             {
