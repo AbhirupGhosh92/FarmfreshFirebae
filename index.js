@@ -195,9 +195,9 @@ exports.addArea = functions.https.onRequest((req, res) => {
     else {
 
       var body = req.body;
-      var id = body.name;
+      var id = body.areaId;
       var manager = body.manager;
-      admin.database().ref('/area/'+id).set({
+      admin.database().ref('/area/'+id).set({	"areaId" :body.areaId,
         "deliveryCharge":body.deliveryCharge,"manager":body.manager,"minimumBill":body.minimumBill,"name":body.name
         }).then(() => {
         responseParser("Area added Successfully",200,res);
@@ -205,7 +205,9 @@ exports.addArea = functions.https.onRequest((req, res) => {
 
       if(manager.length  != 0 && manager != null)
       {
-        admin.database().ref('/managers/'+manager).set({"name":manager,"area":body.name,"phone":"",address:""});
+        admin.database().ref('/managers/'+manager).child('areas').child(body.areaId).set({
+            'active' : true,
+        });
       }
     }
 }
@@ -658,6 +660,138 @@ exports.deleteAddress = functions.https.onRequest((req, res) => {
                 responseParser("role is invalid",400,res);
             }
             
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.createDeliveryBoy = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var uid = body.uid;
+      var deliveryBoyId = body.deliveryBoyId;
+
+      admin.database().ref('/'+'userDetails/delivery/'+deliveryBoyId).once("value",(snapshot) => {
+                    
+        if(!snapshot.exists())
+        {
+            responseParser("delivery boy not found",400,res);
+        }
+        else {
+            var json = snapshot.toJSON();
+            if (json.hasOwnProperty("email") && json.hasOwnProperty("mobile") && json.hasOwnProperty("name") && json.hasOwnProperty("address")) {           
+                admin.database().ref('/'+'userDetails/manager/'+uid).child('deliveryBoy').child(deliveryBoyId).set({
+                    "active" : true,
+                    "status" : "IDLE"
+                });
+                responseParser('Delivery boy created',200,res);
+            }
+            else
+            {
+                responseParser("delivery boy found but not registered",400,res);
+            }
+            
+        }
+        
+    });
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.deleteDeliveryBoy = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var uid = body.uid;
+      var deliveryBoyId = body.deliveryBoyId;
+
+      ref = admin.database().ref('/'+'userDetails/manager/'+uid+'/deliveryBoy/'+deliveryBoyId);
+      
+      ref.once("value",(snapshot) => {
+                    
+        if(!snapshot.exists())
+        {
+            responseParser("delivery boy not found",400,res);
+        }
+        else {
+            ref.remove();
+            responseParser("Delivery boy removed",200,res);
+        }
+        
+    });
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.deleteArea = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var areaId = body.areaId;
+
+      var refArea = admin.database().ref('/'+'area/'+areaId);
+
+      refArea.once("value",(snapshot) => {
+        var manager = snapshot.child("manager").val();
+        admin.database().ref('/'+'managers/'+manager+'/areas/'+areaId).remove().then(() => {
+            refArea.remove();
+            responseParser("Area removed",200,res);
+
+        })
+
+      });
+
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+exports.addCoupon = functions.https.onRequest((req, res) => {
+    
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+
+      var body = req.body;
+      var id = body.code;
+      admin.database().ref('/coupon/'+id).set({	"code" :body.code,
+        "amount":body.amount,"desc":body.desc
+        }).then(() => {
+        responseParser("Coupon added Successfully",200,res);
+      })
     }
 }
 catch (error) {
