@@ -140,6 +140,7 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
             responseParser({
                 accessGranted:false
             },200,res);
+
         }
         else {
             var statusReport = {};
@@ -312,6 +313,18 @@ exports.grantAccess = functions.https.onRequest((req, res) => {
                                 // See the UserRecord reference doc for the contents of userRecord.
                                 console.log('Successfully fetched user data:', userRecord.toJSON());
                                 admin.database().ref('/access/'+role+'/'+userRecord.uid).child("accessGranted").set(true);
+
+                                admin.database().ref('/metadata/'+role+'/' + userRecord.uid).once("value",snapshot => {
+                                    var token = snapshot.child("fcmToken").val();
+                                    var payload = {
+                                            "notification":{
+                                              "title":"Access Granted",
+                                              "body":userRecord.displayName + " you have been granted access for the role of "+role
+                                            }
+                                    };
+                                    admin.messaging().sendToDevice(token, payload);
+                                });
+
                     responseParser("Access granted successfully",200,res);
                             })
                             .catch(function(error) {
@@ -878,3 +891,38 @@ catch (error) {
     console.error(error);
     }
 });
+
+exports.addFcmToken = functions.https.onRequest((req, res) => {
+    try{
+    if(req.method === 'GET')
+    {
+        responseParser("Method Not allowed", 403, res);
+    }
+    else {
+      var body = req.body;
+      var id = body.id;
+      var role = body.role;
+      var token = body.token;
+      admin.database().ref('/metadata/'+role+'/'+id).set({	"fcmToken" :token}).then(() => {
+        responseParser("FCM Token added successfully",200,res);
+      })
+    }
+}
+catch (error) {
+    responseParser(error,500,res);
+    console.error(error);
+    }
+});
+
+
+exports.userCreatedTrigger = functions.auth.user().onCreate((user) => {
+    try{
+        // admin.database().ref('/metadata/'+role+'/'+id).set({	"fcmToken" :token}).then(() => {
+        //responseParser("FCM Token added successfully",200,res);
+    //  })
+    }
+    catch(err)
+    {
+        console.error(err)
+    }
+  });
