@@ -151,17 +151,17 @@ exports.checkAccess = functions.https.onRequest((req, res) => {
             else {
                     statusReport.accessGranted = false;
             }
-            if(snapshot.child('mobileAdded').exists() && snapshot.child('mobileAdded').val() != null && snapshot.child('mobileAdded').val() == true)
+            if(snapshot.child('mobileAdded').exists() && snapshot.child('mobileAdded').val() != null)
             {
-                statusReport.mobileAdded = true;
+                statusReport.mobileAdded = snapshot.child('mobileAdded').val();
             }
             else {
                   statusReport.mobileAdded = false;
                 }
 
-            if(snapshot.child('detailsAdded').exists() && snapshot.child('detailsAdded').val() != null && snapshot.child('detailsAdded').val() == true )
+            if(snapshot.child('detailsAdded').exists() && snapshot.child('detailsAdded').val() != null )
             {
-                statusReport.detailsAdded = true;
+                statusReport.detailsAdded = snapshot.child('detailsAdded').val();
             }
             else {
                   statusReport.detailsAdded = false;
@@ -469,6 +469,9 @@ exports.addUserDetails = functions.https.onRequest((req, res) => {
                         admin.database().ref('/userDetails/'+role+'/'+body.uid).child("email").set(body.email);
                         admin.database().ref('/userDetails/'+role+'/'+body.uid).child("address").push(body.address);
                         admin.database().ref("/access/"+role+"/"+body.uid).child("detailsAdded").set(true);
+                        
+                        console.log(snapshot.child("address").val())
+                        
                         responseParser("Details Saved",200,res);
                       
                     }
